@@ -4,12 +4,12 @@ from sentence_transformers import SentenceTransformer
 import json
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-
+import os
 app = Flask(__name__)
 CORS(app)
 
 # Load model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = SentenceTransformer("all-MiniLM-L6-v2", device= "cpu")
 
 # Load FAQ data
 with open("faq_data.json", "r", encoding="utf-8") as f:
@@ -64,4 +64,6 @@ def chat():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
