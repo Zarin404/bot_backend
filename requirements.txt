@@ -1,6 +1,5 @@
-gradio
+fastapi
+uvicorn
 sentence-transformers
 scikit-learn
 numpy
-torch
-

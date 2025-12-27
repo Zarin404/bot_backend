@@ -1,10 +1,25 @@
-import gradio as gr
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
 import json
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import os
-import requests
+
+app = FastAPI()
+
+# Allow same-origin requests (safe here)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount frontend folder
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 # Load model
 model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
@@ -21,14 +36,18 @@ question_embeddings = model.encode(questions)
 SIMILARITY_THRESHOLD = 0.5
 user_sessions = {}
 
-# HF token (from Space variable named 'zar')
-HF_TOKEN = os.getenv("zar")  # <-- safe 
-HF_API_URL = "https://api-inference.huggingface.co/models/ZarOUT/bot_backendHF"
+# Serve frontend UI
+@app.get("/", response_class=HTMLResponse)
+async def serve_ui():
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-
-def chat(user_input, session_id="default"):
-    user_input = user_input.lower().strip()
+# Chat endpoint
+@app.post("/ask")
+async def ask_bot(request: Request):
+    data = await request.json()
+    user_input = data.get("message", "").lower().strip()
+    session_id = data.get("session_id", "default")
 
     if session_id in user_sessions:
         combined_input = user_sessions[session_id] + " " + user_input
@@ -43,23 +62,14 @@ def chat(user_input, session_id="default"):
     if best_score < SIMILARITY_THRESHOLD:
         if session_id in user_sessions:
             del user_sessions[session_id]
-            return "I’m not fully sure about that. Please check the official FAQ or contact a staff on Discord."
+            return JSONResponse({
+                "reply": "I’m not fully sure about that. Please check the official FAQ or contact a staff on Discord."
+            })
         else:
             user_sessions[session_id] = user_input
-            return "Could you please elaborate what you mean?"
+            return JSONResponse({"reply": "Could you please elaborate what you mean?"})
 
     if session_id in user_sessions:
         del user_sessions[session_id]
 
-    return answers[best_idx]
-
-# Gradio UI
-iface = gr.Interface(
-    fn=chat,
-    inputs=[gr.Textbox(label="Ask a question"), gr.Textbox(value="default", visible=False, label="Session ID")],
-    outputs="text",
-    title="Trial FAQ Bot"
-)
-
-iface.launch()
-
+    return JSONResponse({"reply": answers[best_idx]})
