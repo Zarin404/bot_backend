@@ -3,6 +3,8 @@ from sentence_transformers import SentenceTransformer
 import json
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import os
+import requests
 
 # Load model
 model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
@@ -18,6 +20,12 @@ question_embeddings = model.encode(questions)
 
 SIMILARITY_THRESHOLD = 0.5
 user_sessions = {}
+
+# HF token (from Space variable named 'zar')
+HF_TOKEN = os.getenv("zar")  # <-- safe 
+HF_API_URL = "https://api-inference.huggingface.co/models/ZarOUT/bot_backendHF"
+
+headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 def chat(user_input, session_id="default"):
     user_input = user_input.lower().strip()
@@ -50,7 +58,7 @@ iface = gr.Interface(
     fn=chat,
     inputs=[gr.Textbox(label="Ask a question"), gr.Textbox(value="default", visible=False, label="Session ID")],
     outputs="text",
-    title="Eduvance FAQ Bot"
+    title="Trial FAQ Bot"
 )
 
 iface.launch()
