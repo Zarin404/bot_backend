@@ -1,6 +1,6 @@
-flask
-flask-cors
+gradio
 sentence-transformers
 scikit-learn
 numpy
 torch
+
